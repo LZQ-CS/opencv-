@@ -1,0 +1,65 @@
+
+import cv2
+import mediapipe as mp
+
+# 初始化MediaPipe手部检测模型
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
+    static_image_mode=False,  # 视频流模式（非静态图）
+    max_num_hands=2,  # 最大检测手部数量
+    min_detection_confidence=0.5,  # 检测置信度阈值
+    min_tracking_confidence=0.5  # 跟踪置信度阈值
+)
+mp_drawing = mp.solutions.drawing_utils  # 绘图工具
+
+# 打开摄像头（默认摄像头编号0）
+cap = cv2.VideoCapture(0)
+
+while cap.isOpened():
+    success, frame = cap.read()
+    if not success:
+        print("错误：无法读取摄像头画面！")
+        break
+
+    # 将BGR图像转为RGB（MediaPipe需要RGB输入）
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # 检测手部关键点
+    results = hands.process(rgb_frame)
+
+    # 如果有检测到手
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            # 绘制手部关键点和连线（可选）
+            mp_drawing.draw_landmarks(
+                frame,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+                landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
+                connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2)
+            )
+
+            # 计算手部边界框（修复坐标转换错误）
+            h, w, _ = frame.shape
+            x_coords = [int(lm.x * w) for lm in hand_landmarks.landmark]
+            y_coords = [int(lm.y * h) for lm in hand_landmarks.landmark]
+
+            # 确保坐标不超出图像范围
+            x_min = max(0, min(x_coords))
+            x_max = min(w, max(x_coords))
+            y_min = max(0, min(y_coords))
+            y_max = min(h, max(y_coords))
+
+            # 绘制矩形框（修复括号问题）
+            cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+
+    # 显示画面
+    cv2.imshow('Hand Detection', frame)
+
+    # 按ESC退出
+    if cv2.waitKey(1) == 27:
+        break
+
+# 释放资源
+cap.release()
+cv2.destroyAllWindows()

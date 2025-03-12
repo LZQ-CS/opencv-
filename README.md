@@ -10,3 +10,10 @@ Haar级联文件：OpenCV内置了预训练的人脸检测模型（XML文件）�
     
 #手势识别  
 pip install opencv-python mediapipe  
+
+#石头剪刀布  
+pip install opencv-python  
+pip install opencv-contrib-python  # 包含更多高级功能  
+pip install opencv-python mediapipe  
+
+

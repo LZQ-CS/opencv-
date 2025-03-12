@@ -1,0 +1,99 @@
+import cv2
+import mediapipe as mp
+import numpy as np
+
+# 初始化MediaPipe手部模型
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=1,  # 只检测一只手（简化逻辑）
+    min_detection_confidence=0.7,
+    min_tracking_confidence=0.5
+)
+mp_drawing = mp.solutions.drawing_utils
+
+# 打开摄像头
+cap = cv2.VideoCapture(0)
+
+
+# 定义手势判断函数
+def get_gesture(hand_landmarks, img_shape):
+    h, w = img_shape[:2]
+    tip_ids = [4, 8, 12, 16, 20]  # 指尖关键点索引（拇指到小指）
+    fingers = []
+
+    # --- 判断拇指是否伸直（需特殊处理）---
+    thumb_tip = hand_landmarks.landmark[tip_ids[0]]  # 拇指指尖
+    thumb_mcp = hand_landmarks.landmark[2]  # 拇指根部关节
+
+    # 横向手势：拇指指尖x坐标超过根部关节则为伸直
+    if thumb_tip.x > thumb_mcp.x:
+        fingers.append(1)
+    else:
+        fingers.append(0)
+
+    # --- 判断其他四指是否伸直 ---
+    for id in range(1, 5):
+        tip = hand_landmarks.landmark[tip_ids[id]]  # 指尖
+        dip = hand_landmarks.landmark[tip_ids[id] - 1]  # 第二指节
+
+        # 指尖的y坐标 < 第二指节的y坐标 → 手指伸直
+        if tip.y < dip.y:
+            fingers.append(1)
+        else:
+            fingers.append(0)
+
+    # --- 根据伸直手指数量判断手势 ---
+    total_fingers = sum(fingers)
+
+    # 手势逻辑规则
+    if total_fingers == 0:
+        return "Rock"
+    elif total_fingers == 5:
+        return "Paper"
+    elif fingers[1] == 1 and fingers[2] == 1 and total_fingers == 2:
+        return "Scissors"
+    else:
+        return "Unknown"
+
+
+# 主循环
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # 处理图像
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(rgb_frame)
+
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            # 绘制关键点
+            mp_drawing.draw_landmarks(
+                frame, hand_landmarks, mp_hands.HAND_CONNECTIONS,
+                mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2),
+                mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2)
+            )
+
+            # 计算边界框
+            x_coords = [int(lm.x * frame.shape[1]) for lm in hand_landmarks.landmark]
+            y_coords = [int(lm.y * frame.shape[0]) for lm in hand_landmarks.landmark]
+            x_min, x_max = max(0, min(x_coords)), min(frame.shape[1], max(x_coords))
+            y_min, y_max = max(0, min(y_coords)), min(frame.shape[0], max(y_coords))
+
+            # 识别手势
+            gesture = get_gesture(hand_landmarks, frame.shape)
+
+            # 绘制结果
+            cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+            cv2.putText(frame, gesture, (x_min, y_min - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    # 显示画面
+    cv2.imshow('Rock Paper Scissors', frame)
+    if cv2.waitKey(1) == 27:
+        break
+
+cap.release()
+cv2.destroyAllWindows()

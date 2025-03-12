@@ -1,5 +1,5 @@
 # opencv学习入门  
-个人学习自用，opencv入门的小项目  
+个人学习自用，opencv入门的项目  
 需要安装的依赖库：  
 #人脸识别  
 pip install opencv-python  

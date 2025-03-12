@@ -1,1 +1,52 @@
 
+import cv2
+
+# 1. 加载人脸检测的分类器（Haar级联模型）
+# 注意：确保XML文件路径正确！可从OpenCV官网或GitHub下载
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# 2. 检查分类器是否加载成功
+if face_cascade.empty():
+    print("错误：人脸检测模型文件未找到！")
+    exit()
+
+# 3. 打开摄像头（默认摄像头编号为0，外接摄像头可尝试1或2）
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("错误：无法打开摄像头！检查是否被其他程序占用或驱动问题。")
+    exit()
+
+# 4. 实时处理循环
+while True:
+    # 4.1 读取摄像头画面
+    ret, frame = cap.read()
+    if not ret:
+        print("错误：无法获取画面！")
+        break
+
+    # 4.2 转换为灰度图（人脸检测需要灰度图像）
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # 4.3 检测人脸（关键参数调节说明见下文）
+    faces = face_cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.1,   # 图像缩放比例（1.1表示每次缩小10%以检测不同大小的人脸）
+        minNeighbors=5,    # 每个候选矩形至少保留的邻居数量（值越大检测越严格）
+        minSize=(30, 30)   # 人脸最小尺寸（小于此值的忽略）
+    )
+
+    # 4.4 在原始彩色图像上画矩形框
+    for (x, y, w, h) in faces:
+        # 参数说明：图像，左上角坐标，右下角坐标，颜色（BGR），线宽
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+    # 4.5 显示处理后的画面
+    cv2.imshow('Real-time Face Detection', frame)
+
+    # 4.6 按ESC键退出（ASCII码27）
+    if cv2.waitKey(1) == 27:
+        break
+
+# 5. 释放资源
+cap.release()
+cv2.destroyAllWindows()
